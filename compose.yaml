@@ -1,0 +1,85 @@
+x-redis: &redis
+  REDIS_DB: 11
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+x-common: &common
+  SECRETS_ADDRESS: "/run/secrets"
+  POSTGRES_URL: "postgres"
+  ADMINS: "mnoskov@skbkontur.ru korobkin@skbkontur.ru"
+  TEST_DATA: "true"
+
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    environment:
+      << : [*redis, *common]
+    secrets:
+      - pg_pass
+      - pg_user
+      - pg_db_name
+      - token
+      - staff_client_id
+      - staff_client_secret
+    depends_on:
+      - postgres
+      - redis
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile_scheduler
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      <<: [ *redis, *common ]
+    secrets:
+      - pg_pass
+      - pg_user
+      - pg_db_name
+      - token
+      - staff_client_id
+      - staff_client_secret
+  redis:
+    image: redis
+    restart: always
+    volumes:
+      - ./redis_data:/data
+    ports:
+      - "6379:6379"
+    environment:
+      <<: [ *redis ]
+  postgres:
+    image: postgres:13.3
+    environment:
+      POSTGRES_DB_FILE: /run/secrets/pg_db_name
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_pass
+      POSTGRES_USER_FILE: /run/secrets/pg_user
+    volumes:
+      - stages-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    secrets:
+      - pg_pass
+      - pg_user
+      - pg_db_name
+volumes:
+  stages-data:
+secrets:
+  pg_pass:
+    file: src/secrets/pg_pass.txt
+  pg_user:
+    file: src/secrets/pg_user.txt
+  pg_db_name:
+    file: src/secrets/pg_db_name.txt
+  token:
+    file: src/secrets/token.txt
+  staff_client_id:
+    file: src/secrets/staff_client_id.txt
+  staff_client_secret:
+    file: src/secrets/staff_client_secret.txt

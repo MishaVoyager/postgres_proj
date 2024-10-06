@@ -163,3 +163,5 @@ cython_debug/
 .vscode/*
 .idea/*
 *.jpg
+redis_data/*
+*/secrets/*
